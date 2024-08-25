@@ -34,19 +34,21 @@ import bencodepy
 bc = bencodepy.Bencode(encoding="utf-8")
 def decode_bencode(bencoded_value):
     return bc.decode(bencoded_value)
-    if chr(bencoded_value[0]).isdigit():
-        length = int(bencoded_value.split(b":")[0])
-        return bencoded_value.split(b":")[1][:length]
-    elif bencoded_value.startswith(b"i"):  # i.e. b'i52e'
-        return int(bencoded_value[1:-1])
-    else:
-        raise NotImplementedError("Only strings are supported at the moment")
+    
 
     
     # decoded_value, _ = decode(bencoded_value)
     # return decoded_value
 
-
+def extract_torrent_info(torrent_file):
+    with open (torrent_file,'rb') as tf:
+        cont=tf.read()
+    decode=decode_bencode(cont)
+    if 'announce' not in decode or 'info' not in decode:
+        raise ValueError("Invalid torrent file")
+    tracker_url= decode['announce'].decode('utf-8')
+    length= decode['info']['length']
+    return tracker_url, length
 
 def main():
     command = sys.argv[1]
@@ -66,7 +68,11 @@ def main():
                 return data.decode()
 
             raise TypeError(f"Type not serializable: {type(data)}")
-
+    elif command =="info":
+        torrent_file=sys.argv[2]
+        tracker_url, file_length =extract_torrent_info(torrent_file)
+        print(f"Tracker URL:{tracker_url} ")
+        print(f"Length:{file_length} ")
         # Uncomment this block to pass the first stage
         print(json.dumps(decode_bencode(bencoded_value), default=bytes_to_str))
     else:
