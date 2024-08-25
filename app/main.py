@@ -40,15 +40,15 @@ def decode_bencode(bencoded_value):
     # decoded_value, _ = decode(bencoded_value)
     # return decoded_value
 
-# def extract_torrent_info(torrent_file):
-#     with open (torrent_file,'rb') as tf:
-#         cont=tf.read()
-#     decode=decode_bencode(cont)
-#     if 'announce' not in decode or 'info' not in decode:
-#         raise ValueError("Invalid torrent file")
-#     tracker_url= decode['announce'].decode('utf-8')
-#     length= decode['info']['length']
-#     return tracker_url, length
+def extract_torrent_info(torrent_file):
+    with open (torrent_file,'rb') as tf:
+        cont=tf.read()
+    decode=decode_bencode(cont)
+    if 'announce' not in decode or 'info' not in decode:
+        raise ValueError("Invalid torrent file")
+    tracker_url= decode['announce'].decode('utf-8')
+    length= decode['info']['length']
+    return tracker_url, length
 
 def main():
     command = sys.argv[1]
@@ -66,24 +66,24 @@ def main():
         def bytes_to_str(data):
             if isinstance(data, bytes):
                 return data.decode()
-
             raise TypeError(f"Type not serializable: {type(data)}")
-    # elif command =="info":
-    #     torrent_file=sys.argv[2]
-    #     tracker_url, file_length =extract_torrent_info(torrent_file)
-    #     print(f"Tracker URL:{tracker_url} ")
-    #     print(f"Length:{file_length} ")
+        print(json.dumps(decode_bencode(bencoded_value), default=bytes_to_str))
+
+    elif command =="info":
+        torrent_file=sys.argv[2]
+        tracker_url, file_length =extract_torrent_info(torrent_file)
+        print(f"Tracker URL:{tracker_url} ")
+        print(f"Length:{file_length} ")
     
         # Uncomment this block to pass the first stage
-        print(json.dumps(decode_bencode(bencoded_value), default=bytes_to_str))
     
-    elif command == "info":
-        file_name = sys.argv[2]
-        with open(file_name, "rb") as torrent_file:
-            bencoded_content = torrent_file.read()
-        torrent = decode_bencode(bencoded_content)
-        print("Tracker URL:", torrent["announce"].decode())
-        print("Length:", torrent["info"]["length"])
+    # elif command == "info":
+    #     file_name = sys.argv[2]
+    #     with open(file_name, "rb") as torrent_file:
+    #         bencoded_content = torrent_file.read()
+    #     torrent = decode_bencode(bencoded_content)
+    #     print("Tracker URL:", torrent["announce"].decode())
+    #     print("Length:", torrent["info"]["length"])
     
     else:
         raise NotImplementedError(f"Unknown command {command}")
