@@ -90,7 +90,7 @@ def get_peers(decoded_data, info_hash):
     response = requests.get(tracker_url, params=params)
     response_dict, _ = decode_bencode(response.content)
     peers = response_dict.get("peers", b"")
-    return peers
+    return str(peers)
 
 def decode_peers(peers):
     index, result = 0, []
