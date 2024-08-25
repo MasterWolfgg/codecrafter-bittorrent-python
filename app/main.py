@@ -4,6 +4,8 @@ import bencodepy
 import requests
 import hashlib
 
+bc = bencodepy.Bencode(encoding="utf-8")
+
 # import bencodepy - available if you need it!
 # import requests - available if you need it!
 
@@ -136,7 +138,7 @@ def main():
         with open(file_name, "rb") as torrent_file:
             bencoded_content = torrent_file.read()
         torrent = decode_bencode(bencoded_content)
-        hash_file = (hashlib.sha1(decode_bencode(torrent['info']['pieces'])).hexdigest())
+        hash_file = hashlib.sha1(bencodepy.encode(torrent[b"info"])).hexdigest()
         print("Tracker URL:", torrent["announce"].decode())
         print("Length:", torrent["info"]["length"])
         print("Info Hash:",hash_file)
