@@ -12,6 +12,25 @@ bc = bencodepy.Bencode(encoding="utf-8")
 # - decode_bencode(b"10:hello12345") -> b"hello12345"
 def decode_bencode(bencoded_value):
     return bc.decode(bencoded_value)
+
+def bencode(data):
+    if isinstance(data, str):
+        return f"{len(data)}:{data}".encode()
+    elif isinstance(data, bytes):
+        return f"{len(data)}:".encode() + data
+    elif isinstance(data, int):
+        return f"i{data}e".encode()
+    elif isinstance(data, list):
+        return b"l" + b"".join(bencode(item) for item in data) + b"e"
+    elif isinstance(data, dict):
+        encoded_dict = b"".join(
+            bencode(key) + bencode(value) for key, value in sorted(data.items())
+        )
+        return b"d" + encoded_dict + b"e"
+    else:
+        raise TypeError(f"Type not serializable: {type(data)}")
+
+
 def main():
     command = sys.argv[1]
     if command == "decode":
@@ -37,14 +56,13 @@ def main():
         print(f"Piece Hashes: ")
         for i in range(0, len(info_dict[b"info"][b"pieces"]), 20):
             print(info_dict[b"info"][b"pieces"][i : i + 20].hex())
-    
     elif command == "peers":
-        with open(sys.argv[2], "rb") as f:
-            bencoded_value = f.read()
-        torrent_info, _ = decode_bencode(bencoded_value)
-        tracker_url = torrent_info.get("announce", "").decode()
-        info_dict = torrent_info.get("info", {})
-        bencoded_info = decode_bencode(info_dict)
+        with open(sys.argv[2],'rb') as torrent_file:
+            bencoded_value=torrent_file.read()
+        torrent_info= bencodepy.Bencode().decode(bencoded_value)
+        tracker_url= torrent_info.get('announce','').decode()
+        info_dict=torrent_info.get('info',{})
+        bencoded_info=bencode(info_dict)
         info_hash = hashlib.sha1(bencoded_info).digest()
         params = {
             "info_hash": info_hash,
