@@ -73,6 +73,10 @@ def main():
     #     tracker_url, file_length =extract_torrent_info(torrent_file)
     #     print(f"Tracker URL:{tracker_url} ")
     #     print(f"Length:{file_length} ")
+    
+        # Uncomment this block to pass the first stage
+        print(json.dumps(decode_bencode(bencoded_value), default=bytes_to_str))
+    
     elif command == "info":
         file_name = sys.argv[2]
         with open(file_name, "rb") as torrent_file:
@@ -80,8 +84,7 @@ def main():
         torrent = decode_bencode(bencoded_content)
         print("Tracker URL:", torrent["announce"].decode())
         print("Length:", torrent["info"]["length"])
-        # Uncomment this block to pass the first stage
-        print(json.dumps(decode_bencode(bencoded_value), default=bytes_to_str))
+    
     else:
         raise NotImplementedError(f"Unknown command {command}")
 
