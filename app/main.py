@@ -263,7 +263,7 @@ def main():
             s.send(handshake)
             print(f"Peer ID: {s.recv(68)[48:].hex()}")
 
-    elif command == "download_peice":
+    elif command == "download_piece":
         output_file=sys.argv[3]
         piece_index=int(sys.argv[5])
         torrent_file=sys.argv[4]
