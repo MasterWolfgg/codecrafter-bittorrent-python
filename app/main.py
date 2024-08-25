@@ -120,7 +120,7 @@ def main():
         with open(file_name, "rb") as f:
             bencoded_value=f.read()
         parsed = bencode(bencoded_value)
-        info=parsed[b"info"]
+        info=parsed(b"info")
         bencoded_info=bencodepy.encode(info)
         info_hash = hashlib.sha1(bencoded_info).digest()
             
