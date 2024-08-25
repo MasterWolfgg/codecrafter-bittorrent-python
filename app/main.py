@@ -110,8 +110,8 @@ def main():
         response_dict, _ = decode_bencode(response.content)
         peers = response_dict.get("peers", b"")
         for i in range(0, len(peers), 6):
-            ip = socket.inet_ntoa(peers[i:i+4])  # Use socket.inet_ntoa to convert IP bytes
-            port = struct.unpack("!H", peers[i+4:i+6])[0]
+            ip = ".".join(str(b) for b in peers[i : i + 4])
+            port = struct.unpack("!H", peers[i + 4 : i + 6])[0]
             print(f"Peer: {ip}:{port}")
     
     elif command == "handshake":
@@ -120,7 +120,7 @@ def main():
         with open(file_name, "rb") as f:
             bencoded_value=f.read()
         parsed = decode_bencode(bencoded_value)
-        info=parsed[b"info"]
+        info=parsed["info"]
         bencoded_info=bencodepy.encode(info)
         info_hash = hashlib.sha1(bencoded_info).digest()
             
