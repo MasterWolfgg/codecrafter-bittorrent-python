@@ -71,6 +71,13 @@ def extract_pieces_hashes(pieces_hashes):
     return result
 
 def get_peers(decoded_data, info_hash):
+    # with open(sys.argv[2], "rb") as f:
+    #         bencoded_value = f.read()
+    # torrent_info, _ = decode_bencode(bencoded_value)
+    tracker_url = decoded_data.get("announce", "").decode()
+    info_dict = decoded_data.get("info", {})
+    bencoded_info = bencode(info_dict)
+    info_hash = hashlib.sha1(bencoded_info).digest()
     params = {
         "info_hash": info_hash,
         "peer_id": "PC0001-7694471987235",
@@ -80,8 +87,10 @@ def get_peers(decoded_data, info_hash):
         "left": decoded_data["info"]["length"],
         "compact": 1,
     }
-    response = requests.get(decoded_data["announce"].decode(), params=params)
-    return decode_peers(decode_bencode(response.content)[0]["peers"])
+    response = requests.get(tracker_url, params=params)
+    response_dict, _ = decode_bencode(response.content)
+    peers = response_dict.get("peers", b"")
+    return peers
 
 def decode_peers(peers):
     index, result = 0, []
