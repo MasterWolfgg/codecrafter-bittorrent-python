@@ -110,8 +110,8 @@ def main():
         response_dict, _ = decode_bencode(response.content)
         peers = response_dict.get("peers", b"")
         for i in range(0, len(peers), 6):
-            ip = ".".join(str(b) for b in peers[i : i + 4])
-            port = struct.unpack("!H", peers[i + 4 : i + 6])[0]
+            ip = socket.inet_ntoa(peers[i:i+4])  # Use socket.inet_ntoa to convert IP bytes
+            port = struct.unpack("!H", peers[i+4:i+6])[0]
             print(f"Peer: {ip}:{port}")
     
     elif command == "handshake":
