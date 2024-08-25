@@ -60,8 +60,8 @@ def main():
         with open(sys.argv[2],'rb') as torrent_file:
             bencoded_value=torrent_file.read()
         torrent_info= bencodepy.Bencode().decode(bencoded_value)
-        tracker_url= torrent_info.get('announce','').decode()
-        info_dict=torrent_info.get('info',{})
+        tracker_url= torrent_info.get("announce","").decode()
+        info_dict=torrent_info.get("info",{})
         bencoded_info=bencode(info_dict)
         info_hash = hashlib.sha1(bencoded_info).digest()
         params = {
