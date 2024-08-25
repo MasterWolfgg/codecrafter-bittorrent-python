@@ -43,6 +43,7 @@ def decode_bencode(bencoded_value):
         raise NotImplementedError(
             "Only strings, integers, lists, and dictionaries are supported at the moment"
         )
+
 def bencode(data):
     if isinstance(data, str):
         return f"{len(data)}:{data}".encode()
@@ -59,6 +60,7 @@ def bencode(data):
         return b"d" + encoded_dict + b"e"
     else:
         raise TypeError(f"Type not serializable: {type(data)}")
+
 def main():
     command = sys.argv[1]
     if command == "decode":
@@ -115,22 +117,23 @@ def main():
     elif command == "handshake":
         file_name = sys.argv[2]
         (ip, port) = sys.argv[3].split(":")
-        with open(file_name, "rb") as file:
-            parsed = decode_bencode(file.read())
-            info = parsed.get(b"info",{})
-            bencoded_info = bencodepy.encode(info)
-            info_hash = hashlib.sha1(bencoded_info).digest()
+        with open(file_name, "rb") as f:
+            bencoded_value=f.read()
+        parsed = decode_bencode(bencoded_value)
+        info=parsed[b'info']
+        bencoded_info=bencodepy.encode(info)
+        info_hash = hashlib.sha1(bencoded_info).digest()
             
-            handshake = (
-                b"\x13BitTorrent protocol\x00\x00\x00\x00\x00\x00\x00\x00"
-                + info_hash
-                + b"00112233445566778899"
-            )
-            
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.connect((ip, int(port)))
-                s.send(handshake)
-                print(f"Peer ID: {s.recv(68)[48:].hex()}")
+        handshake = (
+            b"\x13BitTorrent protocol\x00\x00\x00\x00\x00\x00\x00\x00"
+            + info_hash
+            + b"00112233445566778899"
+        )
+        
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((ip, int(port)))
+            s.send(handshake)
+            print(f"Peer ID: {s.recv(68)[48:].hex()}")
 
     
     else:
