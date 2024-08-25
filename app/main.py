@@ -1,5 +1,6 @@
 import json
 import sys
+import bencodepy
 
 # import bencodepy - available if you need it!
 # import requests - available if you need it!
@@ -8,31 +9,41 @@ import sys
 #
 # - decode_bencode(b"5:hello") -> b"hello"
 # - decode_bencode(b"10:hello12345") -> b"hello12345"
+# def decode_bencode(bencoded_value):
+#     def extract_string(data):
+#         length, rest = data.split(b":",1)
+#         length = int(length)
+#         return rest[:length] , rest[length:]
+#     # recursive decoding 
+#     def decode (data):
+#         if data[0:1].isdigit() :
+#             decoded_str, rest = extract_string(data)
+#             return decoded_str, rest
+#         elif data.startswith(b'i'):
+#             end=data.index(b'e')
+#             return int(data[1:end]), data[end+1:]
+#         elif data.startswith(b'l'):
+#             data=data[1:]
+#             result=[]
+#             while not data.startswith(b'e'):
+#                 item, data=decode(data)
+#                 result.append(item)
+#             return result, data[1:]
+#         else :
+#             raise ValueError("Unsupported or invalid bencode value ")
 def decode_bencode(bencoded_value):
-    def extract_string(data):
-        length, rest = data.split(b":",1)
-        lenght = int(length)
-        return rest[:length] , rest[length:]
-    # recursive decoding 
-    def decode (data):
-        if data[0:1].isdigit() :
-            decoded_str, rest = extract_string(data)
-            return decoded_str, rest
-        elif data.startswith(b'i'):
-            end=data.index(b'e')
-            return int(data[1:end]), data[end+1:]
-        elif data.startswith(b'l'):
-            data=data[1:]
-            result=[]
-            while not data.startswith(b'e'):
-                item, data=decode(data)
-                result.append(item)
-            return result, data[1:]
-        else :
-            raise ValueError("Unsupported or invalid bencode value ")
+    return bencodepy.decode(bencoded_value)
+    if chr(bencoded_value[0]).isdigit():
+        length = int(bencoded_value.split(b":")[0])
+        return bencoded_value.split(b":")[1][:length]
+    elif bencoded_value.startswith(b"i"):  # i.e. b'i52e'
+        return int(bencoded_value[1:-1])
+    else:
+        raise NotImplementedError("Only strings are supported at the moment")
+
     
-    decoded_value, _ =decode(bencoded_value)
-    return decoded_value
+    # decoded_value, _ = decode(bencoded_value)
+    # return decoded_value
 
 
 
