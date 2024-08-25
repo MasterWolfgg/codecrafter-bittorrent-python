@@ -54,6 +54,8 @@ def decode_part(value, start_index):
         raise NotImplementedError(
             "Only strings and integers are supported at the moment"
         )
+
+
 def decode_string(bencoded_value, start_index):
     if not chr(bencoded_value[start_index]).isdigit():
         raise ValueError("Invalid encoded string", bencoded_value, start_index)
@@ -65,6 +67,8 @@ def decode_string(bencoded_value, start_index):
     word_start = first_colon_index + 1
     word_end = first_colon_index + length + 1
     return bencoded_value[word_start:word_end], start_index + word_end
+
+
 def decode_integer(bencoded_value, start_index):
     if chr(bencoded_value[start_index]) != "i":
         raise ValueError("Invalid encoded integer", bencoded_value, start_index)
@@ -73,6 +77,8 @@ def decode_integer(bencoded_value, start_index):
     if end_marker == -1:
         raise ValueError("Invalid encoded integer", bencoded_value)
     return int(bencoded_value[1:end_marker]), start_index + end_marker + 1
+
+
 def decode_list(bencoded_value, start_index):
     if chr(bencoded_value[start_index]) != "l":
         raise ValueError("Invalid encoded list", bencoded_value, start_index)
@@ -82,6 +88,8 @@ def decode_list(bencoded_value, start_index):
         value, current_index = decode_part(bencoded_value, current_index)
         values.append(value)
     return values, current_index + 1
+
+
 def decode_dict(bencoded_value, start_index):
     if chr(bencoded_value[start_index]) != "d":
         raise ValueError("Invalid encoded dict", bencoded_value, start_index)
@@ -129,6 +137,8 @@ def main():
         torrent = decode_bencode(bencoded_content)
         print("Tracker URL:", torrent["announce"].decode())
         print("Length:", torrent["info"]["length"])
+        print("Info Hash:", torrent["info"]["pieces"])
+        
     else:
         raise NotImplementedError(f"Unknown command {command}")
 
