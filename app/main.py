@@ -139,7 +139,7 @@ def main():
         hash_file = (hashlib.sha1(torrent['info']['pieces']).hexdigest())
         print("Tracker URL:", torrent["announce"].decode())
         print("Length:", torrent["info"]["length"])
-        print("Info Hash: {hash_file}")
+        print("Info Hash:",hash_file)
         
     else:
         raise NotImplementedError(f"Unknown command {command}")
