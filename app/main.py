@@ -68,6 +68,7 @@ def main():
                 return data.decode()
         decoded_value, _ = decode_bencode(bencoded_value)
         print(json.dumps(decoded_value, default=bytes_to_str))
+    
     elif command == "info":
         with open(sys.argv[2], "rb") as f:
             bencoded_value = f.read()
@@ -85,6 +86,7 @@ def main():
         print(f"Info Hash: {info_hash}")
         print(f"Piece Length: {piece_length}")
         print(f"Piece Hashes: {piece_hashes}")
+    
     elif command == "peers":
         with open(sys.argv[2], "rb") as f:
             bencoded_value = f.read()
@@ -115,7 +117,7 @@ def main():
         (ip, port) = sys.argv[3].split(":")
         with open(file_name, "rb") as file:
             parsed = decode_bencode(file.read())
-            info = parsed["info"]
+            info = parsed.get(b"info",{})
             bencoded_info = bencodepy.encode(info)
             info_hash = hashlib.sha1(bencoded_info).digest()
             
