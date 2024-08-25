@@ -119,8 +119,8 @@ def main():
         (ip, port) = sys.argv[3].split(":")
         with open(file_name, "rb") as f:
             bencoded_value=f.read()
-        parsed = str(decode_bencode(bencoded_value))
-        info=parsed(b"info")
+        parsed = bencode(bencoded_value)
+        info=parsed[b"info"]
         bencoded_info=bencodepy.encode(info)
         info_hash = hashlib.sha1(bencoded_info).digest()
             
