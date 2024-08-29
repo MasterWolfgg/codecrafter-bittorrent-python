@@ -2,82 +2,76 @@ import json
 import sys
 import hashlib
 import requests
-import struct
-import bencodepy
 import socket
+import struct
 import math
-
-
+# Examples:
+#
+# - decode_bencode(b"5:hello") -> "hello"
+# - decode_bencode(b"i52e") -> 52
+# - decode_bencode(b"l5:helloi52ee") -> ["hello", 52]
+# - decode_bencode(b"d3:foo3:bar5:helloi52ee") -> {"foo":"bar","hello":52}
 def decode_bencode(bencoded_value):
-    if chr(bencoded_value[0]).isdigit():
-        first_colon_index = bencoded_value.find(b":")
-        if first_colon_index == -1:
-            raise ValueError("Invalid encoded value")
-        length = int(bencoded_value[:first_colon_index])
-        return (
-            bencoded_value[first_colon_index + 1 : first_colon_index + 1 + length],
-            bencoded_value[first_colon_index + 1 + length :],
-        )
-    elif chr(bencoded_value[0]) == "i":
-        end_index = bencoded_value.find(b"e")
-        if end_index == -1:
-            raise ValueError("Invalid encoded value")
-        return int(bencoded_value[1:end_index]), bencoded_value[end_index + 1 :]
-    elif chr(bencoded_value[0]) == "l":
-        list_values = []
-        remaining = bencoded_value[1:]
-        while remaining[0] != ord("e"):
-            decoded, remaining = decode_bencode(remaining)
-            list_values.append(decoded)
-        return list_values, remaining[1:]
-    elif chr(bencoded_value[0]) == "d":
-        dict_values = {}
-        remaining = bencoded_value[1:]
-        while remaining[0] != ord("e"):
-            key, remaining = decode_bencode(remaining)
-            if isinstance(key, bytes):
-                key = key.decode()
-            value, remaining = decode_bencode(remaining)
-            dict_values[key] = value
-        return dict_values, remaining[1:]
+    first_char = chr(bencoded_value[0])
+    match identify_bencode_type(first_char):
+        case "string":
+            return decode_bencode_string(bencoded_value)
+        case "int":
+            return decode_bencode_int(bencoded_value)
+        case "list":
+            return decode_bencode_list(bencoded_value)
+        case "dict":
+            return decode_bencode_dict(bencoded_value)
+        case _:
+            raise ValueError("Invalid encoded type")
+def identify_bencode_type(first_char):
+    if first_char.isdigit():
+        return "string"
+    elif first_char == "i":
+        return "int"
+    elif first_char == "l":
+        return "list"
+    elif first_char == "d":
+        return "dict"
     else:
-        raise NotImplementedError(
-            "Only strings, integers, lists, and dictionaries are supported at the moment"
-        )
-
-def bencode(data):
-    if isinstance(data, str):
-        return f"{len(data)}:{data}".encode()
-    elif isinstance(data, bytes):
-        return f"{len(data)}:".encode() + data
-    elif isinstance(data, int):
-        return f"i{data}e".encode()
-    elif isinstance(data, list):
-        return b"l" + b"".join(bencode(item) for item in data) + b"e"
-    elif isinstance(data, dict):
-        encoded_dict = b"".join(
-            bencode(key) + bencode(value) for key, value in sorted(data.items())
-        )
-        return b"d" + encoded_dict + b"e"
-    else:
-        raise TypeError(f"Type not serializable: {type(data)}")
-
-
+        raise ValueError("Invalid encoded value")
+def decode_bencode_string(bencoded_value):
+    first_colon_index = bencoded_value.find(b":")
+    if first_colon_index == -1:
+        raise ValueError("Invalid encoded value")
+    length = first_colon_index + int(bencoded_value[:first_colon_index]) + 1
+    return bencoded_value[first_colon_index + 1 : length], length
+def decode_bencode_int(bencoded_value):
+    end_token_index = bencoded_value.find(b"e")
+    length = end_token_index + 1
+    return int(bencoded_value[1:end_token_index]), length
+def decode_bencode_list(bencoded_value):
+    index, result = 1, []
+    while bencoded_value[index] != ord("e"):
+        decoded_value, length = decode_bencode(bencoded_value[index:])
+        index += length
+        result.append(decoded_value)
+    return result, index + 1
+def decode_bencode_dict(bencoded_value):
+    index, result = 1, {}
+    while bencoded_value[index] != ord("e"):
+        key, length = decode_bencode_string(bencoded_value[index:])
+        index += length
+        value, length = decode_bencode(bencoded_value[index:])
+        index += length
+        result[key.decode()] = value
+    return result, index + 1
+def extract_info_hash(bencoded_value):
+    _, bencoded_value_from_info = bencoded_value.split(b"info")
+    _, dict_length = decode_bencode_dict(bencoded_value_from_info)
+    return bencoded_value_from_info[:dict_length]
 def extract_pieces_hashes(pieces_hashes):
     index, result = 0, []
     while index < len(pieces_hashes):
         result.append(pieces_hashes[index : index + 20].hex())
         index += 20
     return result
-
 def get_peers(decoded_data, info_hash):
-    # with open(sys.argv[2], "rb") as f:
-    #         bencoded_value = f.read()
-    # torrent_info, _ = decode_bencode(bencoded_value)
-    tracker_url = decoded_data.get("announce", "").decode()
-    info_dict = decoded_data.get("info", {})
-    bencoded_info = bencode(info_dict)
-    info_hash = hashlib.sha1(bencoded_info).digest()
     params = {
         "info_hash": info_hash,
         "peer_id": "PC0001-7694471987235",
@@ -87,12 +81,8 @@ def get_peers(decoded_data, info_hash):
         "left": decoded_data["info"]["length"],
         "compact": 1,
     }
-    response = requests.get(tracker_url, params=params)
-    response_dict, _ = decode_bencode(response.content)
-    peers = response_dict.get("peers", b"")
-    # return decode_peers(peers)
+    response = requests.get(decoded_data["announce"].decode(), params=params)
     return decode_peers(decode_bencode(response.content)[0]["peers"])
-
 def decode_peers(peers):
     index, result = 0, []
     while index < len(peers):
@@ -103,8 +93,6 @@ def decode_peers(peers):
         result.append(f"{ip}:{port}")
         index += 6
     return result
-
-
 def get_peer_id(ip, port, info_hash):
     protocol_name_length = struct.pack(">B", 19)
     protocol_name = b"BitTorrent protocol"
@@ -121,14 +109,11 @@ def get_peer_id(ip, port, info_hash):
         return response[48:].hex()
     finally:
         sock.close()
-
-
 def download_piece(decoded_data, info_hash, piece_index, output_file):
     peers = get_peers(decoded_data, info_hash)
     peer_ip, peer_port = peers[0].split(":")
     peer_port = int(peer_port)
     get_peer_id(peer_ip, peer_port, info_hash)
-    
     protocol_name_length = struct.pack(">B", 19)
     protocol_name = b"BitTorrent protocol"
     reserved_bytes = b"\x00" * 8
@@ -185,8 +170,6 @@ def download_piece(decoded_data, info_hash, piece_index, output_file):
     finally:
         sock.close()
     return True
-
-
 def receive_message(s):
     length = s.recv(4)
     while not length or not int.from_bytes(length):
@@ -196,104 +179,69 @@ def receive_message(s):
     while len(message) < int.from_bytes(length):
         message += s.recv(int.from_bytes(length) - len(message))
     return length + message
-    
-    
-    
 def main():
     command = sys.argv[1]
-    if command == "decode":
-        bencoded_value = sys.argv[2].encode()
-        def bytes_to_str(data):
-            if isinstance(data, bytes):
-                return data.decode()
-        decoded_value, _ = decode_bencode(bencoded_value)
-        print(json.dumps(decoded_value, default=bytes_to_str))
-    
-    elif command == "info":
-        with open(sys.argv[2], "rb") as f:
-            bencoded_value = f.read()
-        torrent_info, _ = decode_bencode(bencoded_value)
-        tracker_url = torrent_info.get("announce", "").decode()
-        file_length = torrent_info.get("info", {}).get("length", 0)
-        piece_length = torrent_info.get("info", {}).get("piece length", 0)
-        pieces = torrent_info.get("info", {}).get("pieces", b"")
-        piece_hashes = [pieces[i : i + 20].hex() for i in range(0, len(pieces), 20)]
-        print(f"Tracker URL: {tracker_url}")
-        print(f"Length: {file_length}")
-        info_dict = torrent_info.get("info", {})
-        bencoded_info = bencode(info_dict)
-        info_hash = hashlib.sha1(bencoded_info).hexdigest()
-        print(f"Info Hash: {info_hash}")
-        print(f"Piece Length: {piece_length}")
-        print(f"Piece Hashes: {piece_hashes}")
-    
-    elif command == "peers":
-        with open(sys.argv[2], "rb") as f:
-            bencoded_value = f.read()
-        torrent_info, _ = decode_bencode(bencoded_value)
-        tracker_url = torrent_info.get("announce", "").decode()
-        info_dict = torrent_info.get("info", {})
-        bencoded_info = bencode(info_dict)
-        info_hash = hashlib.sha1(bencoded_info).digest()
-        params = {
-            "info_hash": info_hash,
-            "peer_id": "00112233445566778899",
-            "port": 6881,
-            "uploaded": 0,
-            "downloaded": 0,
-            "left": torrent_info.get("info", {}).get("length", 0),
-            "compact": 1,
-        }
-        response = requests.get(tracker_url, params=params)
-        response_dict, _ = decode_bencode(response.content)
-        peers = response_dict.get("peers", b"")
-        for i in range(0, len(peers), 6):
-            ip = ".".join(str(b) for b in peers[i : i + 4])
-            port = struct.unpack("!H", peers[i + 4 : i + 6])[0]
-            print(f"Peer: {ip}:{port}")
-    
-    elif command == "handshake":
-        file_name = sys.argv[2]
-        (ip, port) = sys.argv[3].split(":")
-        with open(file_name, "rb") as f:
-            bencoded_value=f.read()
-        parsed,_ = decode_bencode(bencoded_value)
-        info=parsed.get("info",b"") #using the string slicing to help in tuple slicing 
-        bencoded_info=bencodepy.encode(info)
-        info_hash = hashlib.sha1(bencoded_info).digest()
-            
-        handshake = (
-            b"\x13BitTorrent protocol\x00\x00\x00\x00\x00\x00\x00\x00"
-            + info_hash
-            + b"00112233445566778899"
-        )
-        
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((ip, int(port)))
-            s.send(handshake)
-            print(f"Peer ID: {s.recv(68)[48:].hex()}")
-
-    elif command == "download_piece":
-        output_file=sys.argv[3]
-        piece_index=int(sys.argv[5])
-        torrent_file=sys.argv[4]
-        with open(torrent_file, "rb") as f:
+    match command:
+        case "decode":
+            bencoded_value = sys.argv[2].encode()
+            # json.dumps() can't handle bytes, but bencoded "strings" need to be
+            # bytestrings since they might contain non utf-8 characters.
+            #
+            # Here we convert them to strings for printing to the console.
+            def bytes_to_str(data):
+                if isinstance(data, bytes):
+                    return data.decode()
+                raise TypeError(f"Type not serializable: {type(data)}")
+            print(json.dumps(decode_bencode(bencoded_value)[0], default=bytes_to_str))
+        case "info":
+            torrent_file = sys.argv[2]
+            with open(torrent_file, "rb") as f:
                 torrent_data = f.read()
-        parsed,_=decode_bencode(torrent_data)
-        if download_piece(
-                parsed,
-                hashlib.sha1(bencode(torrent_data)).digest(),
+            decoded_data = decode_bencode(torrent_data)[0]
+            print(f"Tracker URL: {decoded_data['announce'].decode()}")
+            print(f"Length: {decoded_data['info']['length']}")
+            print(
+                f"Info Hash: {hashlib.sha1(extract_info_hash(torrent_data)).hexdigest()}"
+            )
+            print(f"Piece Length: {decoded_data['info']['piece length']}")
+            print(
+                f"Piece Hashes: {extract_pieces_hashes(decoded_data['info']['pieces'])}"
+            )
+        case "peers":
+            torrent_file = sys.argv[2]
+            with open(torrent_file, "rb") as f:
+                torrent_data = f.read()
+            decoded_data = decode_bencode(torrent_data)[0]
+            for peer in get_peers(
+                decoded_data, hashlib.sha1(extract_info_hash(torrent_data)).digest()
+            ):
+                print(peer)
+        case "handshake":
+            peer_ip, peer_port = sys.argv[3].split(":")
+            torrent_file = sys.argv[2]
+            with open(torrent_file, "rb") as f:
+                torrent_data = f.read()
+            decoded_data = decode_bencode(torrent_data)[0]
+            print(
+                f"Peer ID: {get_peer_id(peer_ip, int(peer_port), hashlib.sha1(extract_info_hash(torrent_data)).digest())}"
+            )
+        case "download_piece":
+            output_file = sys.argv[3]
+            piece_index = int(sys.argv[5])
+            torrent_file = sys.argv[4]
+            with open(torrent_file, "rb") as f:
+                torrent_data = f.read()
+            decoded_data = decode_bencode(torrent_data)[0]
+            if download_piece(
+                decoded_data,
+                hashlib.sha1(extract_info_hash(torrent_data)).digest(),
                 piece_index,
                 output_file,
-        ):
-            print(f"Piece {piece_index} downloaded to {output_file}.")
-        else:
-            raise RuntimeError("Failed to download piece")
-    
-    else:
-        raise NotImplementedError(f"Unknown command {command}")
-
-
-
+            ):
+                print(f"Piece {piece_index} downloaded to {output_file}.")
+            else:
+                raise RuntimeError("Failed to download piece")
+        case _:
+            raise NotImplementedError(f"Unknown command {command}")
 if __name__ == "__main__":
     main()
